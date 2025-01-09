@@ -2,6 +2,26 @@ import logging
 from pathlib import Path
 import pysubs2
 import ass_tag_parser
+import os
+import difflib
+import shutil
+import json
+
+def search_file(directory, filename):
+    matches = []
+
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            file_path = os.path.join(root, file)
+            if filename.lower() in file.lower():
+                matches.append(file_path)
+            else:
+                # Check for similarity using difflib
+                similarity = difflib.SequenceMatcher(None, filename.lower(), file.lower()).ratio()
+                if similarity > 0.8:
+                    matches.append(file_path)
+
+    return matches
 
 # Start preparing the logger
 logger = logging.getLogger('collector')  # Initialize new logger
@@ -277,13 +297,19 @@ output_ass = pysubs2.SSAFile()
 
 # This part is not working, so I will comment it till I find the reason.
 # output_ass.clear()  # Clear the ass file from all pre-defined styles.
-
+search = []
 # Insert all styles and their proper text to one ass file object
 for details in collection:
     style = pysubs2.SSAStyle()
     style.fontname = collection[details]['fontname']
     style.bold = collection[details]['bold']
     style.italic = collection[details]['italic']
+    name = style.fontname
+    if style.bold ==  True:
+        name = name + '-bold'
+    if style.italic == True:
+        name = name + '-italic'
+    search.append(name)
 
     event = pysubs2.SSAEvent()
     event.text = collection[details]['characters']
@@ -296,3 +322,51 @@ for details in collection:
 output_ass.save('output.ass', encoding='utf-8-sig')
 unparsed_ass.save('unparsed_tags.ass', encoding='utf-8-sig')
 
+print("looking for fonts")
+print(search)
+
+
+
+with open('config.json', "r") as file:
+    data = json.load(file)
+
+directory = str(data['fonts_destination']).replace('\\', '/')
+
+
+if not os.path.exists("wanted_fonts"):
+    os.makedirs("wanted_fonts")
+
+not_found_fonts = []
+for filename in search:
+    print(f"looking for {filename}.......")
+    results = search_file(directory, filename)
+    print("Results:")
+    print(results)
+
+    if len(results) > 1:
+        for src in results:
+            file = str(src).split('\\')[-1]
+            if f"{filename}.ttf".lower() == file.lower():
+                shutil.copyfile(src, f"wanted_fonts/{file}")
+            elif f"{filename}.otf".lower() == file.lower():
+                shutil.copyfile(src, f"wanted_fonts/{file}")
+            elif f"{filename}.fon".lower() == file.lower():
+                shutil.copyfile(src, f"wanted_fonts/{file}")
+            elif f"{filename}.ttc".lower() == file.lower():
+                shutil.copyfile(src, f"wanted_fonts/{file}")
+            elif f"{filename}.pfm".lower() == file.lower():
+                shutil.copyfile(src, f"wanted_fonts/{file}")
+            else:
+                not_found_fonts.append(filename)
+    elif len(results) == 1:
+        file = str(results[0]).split('\\')[-1]
+        shutil.copyfile(results[0], f"wanted_fonts/{file}")
+    else:
+        not_found_fonts.append(filename)
+
+print("\n\nNot Found Fonts List:")
+not_found_fonts = set(not_found_fonts)
+for nff in not_found_fonts:
+    print(nff)
+
+input("Press Enter to close the program....")
