@@ -364,9 +364,16 @@ for filename in search:
     else:
         not_found_fonts.append(filename)
 
+
 print("\n\nNot Found Fonts List:")
 not_found_fonts = set(not_found_fonts)
 for nff in not_found_fonts:
     print(nff)
+
+
+with open("missing_fonts.txt", 'w') as mff:
+    for font in not_found_fonts:
+        mff.write('%s\n' %font)
+
 
 input("Press Enter to close the program....")
