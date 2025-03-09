@@ -6,7 +6,9 @@ import os
 import difflib
 import shutil
 import json
+import time
 
+search = []
 def search_file(directory, filename):
     matches = []
 
@@ -252,8 +254,17 @@ for full_file_path in subtitles_full_path:
                     # add the unparsed tag to unparsed file
                     if event.style in fl.styles.keys():
                         unparsed_ass.styles[event.style] = fl.styles[event.style]
-
-                    unparsed_ass.append(event)
+                    try:
+                        name = ''
+                        name = fl.styles[event.style].fontname
+                        if fl.styles[event.style].bold == True:
+                            name = name + "-bold"
+                        if fl.styles[event.style].italic == True:
+                            name = name + "-italic"
+                        search.append(name.strip())
+                        unparsed_ass.append(event)
+                    except:
+                        unparsed_ass.append(event)
 
     except (pysubs2.FormatAutodetectionError, pysubs2.Pysubs2Error,
             pysubs2.UnknownFileExtensionError, pysubs2.UnknownFormatIdentifierError,
@@ -297,7 +308,7 @@ output_ass = pysubs2.SSAFile()
 
 # This part is not working, so I will comment it till I find the reason.
 # output_ass.clear()  # Clear the ass file from all pre-defined styles.
-search = []
+
 # Insert all styles and their proper text to one ass file object
 for details in collection:
     style = pysubs2.SSAStyle()
@@ -309,7 +320,7 @@ for details in collection:
         name = name + '-bold'
     if style.italic == True:
         name = name + '-italic'
-    search.append(name)
+    search.append(name.strip())
 
     event = pysubs2.SSAEvent()
     event.text = collection[details]['characters']
@@ -321,10 +332,9 @@ for details in collection:
 # Finally save the data to one ass file
 output_ass.save('output.ass', encoding='utf-8-sig')
 unparsed_ass.save('unparsed_tags.ass', encoding='utf-8-sig')
-
+search = set(search)
 print("looking for fonts")
 print(search)
-
 
 
 with open('config.json', "r") as file:
@@ -336,32 +346,59 @@ directory = str(data['fonts_destination']).replace('\\', '/')
 if not os.path.exists("wanted_fonts"):
     os.makedirs("wanted_fonts")
 
+replacements = {"@": "", "-": "", "_": "", " ":"", ".":"", "®":""}
+
 not_found_fonts = []
 for filename in search:
     print(f"looking for {filename}.......")
     results = search_file(directory, filename)
     print("Results:")
     print(results)
-
+    filename_compare = "".join(replacements.get(char, char) for char in filename)
+    isFound = False
     if len(results) > 1:
         for src in results:
             file = str(src).split('\\')[-1]
-            if f"{filename}.ttf".lower() == file.lower():
+            file_compare = "".join(replacements.get(char, char) for char in file)
+            # print(f"{filename_compare.lower()} vs {file_compare.lower()}")
+            # time.sleep(4)
+            if f"{filename_compare}ttf".lower().strip() == file_compare.lower().strip():
                 shutil.copyfile(src, f"wanted_fonts/{file}")
-            elif f"{filename}.otf".lower() == file.lower():
+                isFound = True
+            elif f"{filename_compare}otf".lower().strip() == file_compare.lower().strip():
                 shutil.copyfile(src, f"wanted_fonts/{file}")
-            elif f"{filename}.fon".lower() == file.lower():
+                isFound = True
+            elif f"{filename_compare}fon".lower().strip() == file_compare.lower().strip():
                 shutil.copyfile(src, f"wanted_fonts/{file}")
-            elif f"{filename}.ttc".lower() == file.lower():
+                isFound = True
+            elif f"{filename_compare}ttc".lower().strip() == file_compare.lower().strip():
                 shutil.copyfile(src, f"wanted_fonts/{file}")
-            elif f"{filename}.pfm".lower() == file.lower():
+                isFound = True
+            elif f"{filename_compare}pfm".lower().strip() == file_compare.lower().strip():
                 shutil.copyfile(src, f"wanted_fonts/{file}")
-            else:
-                not_found_fonts.append(filename)
+                isFound = True
     elif len(results) == 1:
         file = str(results[0]).split('\\')[-1]
-        shutil.copyfile(results[0], f"wanted_fonts/{file}")
-    else:
+        file_compare = "".join(replacements.get(char, char) for char in file)
+        # print(f"{filename_compare.lower()} vs {file_compare.lower()}")
+        # time.sleep(4)
+        if f"{filename_compare}ttf".lower().strip() == file_compare.lower().strip():
+            shutil.copyfile(results[0], f"wanted_fonts/{file}")
+            isFound = True
+        elif f"{filename_compare}otf".lower().strip() == file_compare.lower().strip():
+            shutil.copyfile(results[0], f"wanted_fonts/{file}")
+            isFound = True
+        elif f"{filename_compare}fon".lower().strip() == file_compare.lower().strip():
+            shutil.copyfile(results[0], f"wanted_fonts/{file}")
+            isFound = True
+        elif f"{filename_compare}ttc".lower().strip() == file_compare.lower().strip():
+            shutil.copyfile(results[0], f"wanted_fonts/{file}")
+            isFound = True
+        elif f"{filename_compare}pfm".lower().strip() == file_compare.lower().strip():
+            shutil.copyfile(results[0], f"wanted_fonts/{file}")
+            isFound = True
+
+    if len(results) == 0 or not isFound:
         not_found_fonts.append(filename)
 
 
